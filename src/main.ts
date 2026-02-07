@@ -27,6 +27,8 @@ const STAR_THROW_SCALE = 0.28;
 const PLANET_THROW_SCALE = 0.62;
 const STAR_BOUNCE = 0.72;
 const SANDBOX_SPAWN_SPEED = 12;
+const PLANET_SPACING_BUFFER = 0.7;
+const PLANET_SPACING_KICK = 0.035;
 
 const boundsFromViewport = (): { width: number; height: number } => {
   const viewWidth = Math.max(window.innerWidth, 1);
@@ -216,7 +218,81 @@ class OrbitPuzzlesGame {
 
       resolveWallCollisions(planet, this.walls);
       this.resolveBoundsBounce(planet.pos, planet.vel, planet.radius, planet.restitution);
+    }
+
+    this.enforcePlanetSpacing(draggedPlanetId, dt);
+
+    for (const planet of this.planets) {
       this.updateTrail(planet, dt);
+    }
+  }
+
+  private enforcePlanetSpacing(draggedPlanetId: string | null, dt: number): void {
+    const safeDt = Math.max(dt, 1 / 120);
+
+    for (let iteration = 0; iteration < 2; iteration += 1) {
+      for (let i = 0; i < this.planets.length; i += 1) {
+        for (let j = i + 1; j < this.planets.length; j += 1) {
+          const a = this.planets[i];
+          const b = this.planets[j];
+
+          const dx = b.pos.x - a.pos.x;
+          const dy = b.pos.y - a.pos.y;
+          const distSq = dx * dx + dy * dy;
+          const targetDistance = a.radius + b.radius + PLANET_SPACING_BUFFER;
+          if (distSq >= targetDistance * targetDistance) continue;
+
+          const dist = Math.sqrt(Math.max(distSq, 1e-8));
+          const nx = distSq < 1e-8 ? 1 : dx / dist;
+          const ny = distSq < 1e-8 ? 0 : dy / dist;
+          const overlap = targetDistance - dist;
+          if (overlap <= 0) continue;
+
+          let moveA = 0.5;
+          let moveB = 0.5;
+          if (a.id === draggedPlanetId) {
+            moveA = 0;
+            moveB = 1;
+          } else if (b.id === draggedPlanetId) {
+            moveA = 1;
+            moveB = 0;
+          }
+
+          a.pos.x -= nx * overlap * moveA;
+          a.pos.y -= ny * overlap * moveA;
+          b.pos.x += nx * overlap * moveB;
+          b.pos.y += ny * overlap * moveB;
+
+          a.pos.x = clamp(a.pos.x, a.radius, this.bounds.width - a.radius);
+          a.pos.y = clamp(a.pos.y, a.radius, this.bounds.height - a.radius);
+          b.pos.x = clamp(b.pos.x, b.radius, this.bounds.width - b.radius);
+          b.pos.y = clamp(b.pos.y, b.radius, this.bounds.height - b.radius);
+
+          const kickSpeed = (overlap / safeDt) * PLANET_SPACING_KICK;
+          if (a.id !== draggedPlanetId) {
+            a.vel.x -= nx * kickSpeed * moveA;
+            a.vel.y -= ny * kickSpeed * moveA;
+          }
+          if (b.id !== draggedPlanetId) {
+            b.vel.x += nx * kickSpeed * moveB;
+            b.vel.y += ny * kickSpeed * moveB;
+          }
+
+          const speedA = length(a.vel);
+          if (speedA > a.maxSpeed && speedA > 1e-6) {
+            const ratio = a.maxSpeed / speedA;
+            a.vel.x *= ratio;
+            a.vel.y *= ratio;
+          }
+
+          const speedB = length(b.vel);
+          if (speedB > b.maxSpeed && speedB > 1e-6) {
+            const ratio = b.maxSpeed / speedB;
+            b.vel.x *= ratio;
+            b.vel.y *= ratio;
+          }
+        }
+      }
     }
   }
 
