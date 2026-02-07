@@ -16,6 +16,20 @@ npm run build
 npm run preview
 ```
 
+## Deploy to GitHub Pages
+
+This repo includes `.github/workflows/deploy-pages.yml` to publish `dist/` to GitHub Pages on pushes to `main`.
+
+1. Push this repo to GitHub.
+2. In GitHub, open `Settings -> Pages`.
+3. Set `Source` to `GitHub Actions`.
+4. Push to `main` (or run the workflow manually from `Actions`).
+
+Notes:
+- Vite base path is auto-set during GitHub Actions builds to `/<repo>/` for project pages.
+- For a custom base path, set `VITE_BASE_PATH` in workflow/repo variables.
+- For `username.github.io` repos, base stays `/`.
+
 ## Controls
 
 - Drag a movable star to reshape gravity fields.

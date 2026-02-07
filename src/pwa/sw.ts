@@ -10,6 +10,7 @@ declare const self: ServiceWorkerGlobalScope & {
 const toAbsoluteUrl = (url: string): string => new URL(url, self.registration.scope).toString();
 
 const precacheUrls = (self.__WB_MANIFEST ?? []).map((entry) => toAbsoluteUrl(entry.url));
+const navigationFallbacks = [toAbsoluteUrl('index.html'), self.registration.scope, '/index.html', '/'];
 
 const staleWhileRevalidate = async (request: Request, cacheName: string): Promise<Response> => {
   const cache = await caches.open(cacheName);
@@ -47,11 +48,10 @@ const networkFirstNavigation = async (request: Request): Promise<Response> => {
     // fallback below
   }
 
-  const cachedDocument = await cache.match('/index.html');
-  if (cachedDocument) return cachedDocument;
-
-  const cachedRoot = await cache.match('/');
-  if (cachedRoot) return cachedRoot;
+  for (const fallback of navigationFallbacks) {
+    const cached = await cache.match(fallback);
+    if (cached) return cached;
+  }
 
   return new Response('Offline', { status: 503, statusText: 'Offline' });
 };

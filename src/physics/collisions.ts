@@ -145,18 +145,9 @@ export const isCollidingWithSun = (
 export const isPreviewUnsafe = (
   point: Vec2,
   radius: number,
-  bounds: Bounds,
+  _bounds: Bounds,
   hazards: ReadonlyArray<HazardEntity>
 ): boolean => {
-  if (
-    point.x < -radius ||
-    point.y < -radius ||
-    point.x > bounds.width + radius ||
-    point.y > bounds.height + radius
-  ) {
-    return true;
-  }
-
   for (const hazard of hazards) {
     if (
       hazard.type === 'circle' &&

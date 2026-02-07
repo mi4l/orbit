@@ -217,7 +217,6 @@ class OrbitPuzzlesGame {
       }
 
       resolveWallCollisions(planet, this.walls);
-      this.resolveBoundsBounce(planet.pos, planet.vel, planet.radius, planet.restitution);
     }
 
     this.enforcePlanetSpacing(draggedPlanetId, dt);
@@ -262,11 +261,6 @@ class OrbitPuzzlesGame {
           a.pos.y -= ny * overlap * moveA;
           b.pos.x += nx * overlap * moveB;
           b.pos.y += ny * overlap * moveB;
-
-          a.pos.x = clamp(a.pos.x, a.radius, this.bounds.width - a.radius);
-          a.pos.y = clamp(a.pos.y, a.radius, this.bounds.height - a.radius);
-          b.pos.x = clamp(b.pos.x, b.radius, this.bounds.width - b.radius);
-          b.pos.y = clamp(b.pos.y, b.radius, this.bounds.height - b.radius);
 
           const kickSpeed = (overlap / safeDt) * PLANET_SPACING_KICK;
           if (a.id !== draggedPlanetId) {
@@ -779,11 +773,6 @@ class OrbitPuzzlesGame {
     for (const sun of this.suns) {
       sun.pos.x = clamp(sun.pos.x, sun.visualRadius, this.bounds.width - sun.visualRadius);
       sun.pos.y = clamp(sun.pos.y, sun.visualRadius, this.bounds.height - sun.visualRadius);
-    }
-
-    for (const planet of this.planets) {
-      planet.pos.x = clamp(planet.pos.x, planet.radius, this.bounds.width - planet.radius);
-      planet.pos.y = clamp(planet.pos.y, planet.radius, this.bounds.height - planet.radius);
     }
   };
 
