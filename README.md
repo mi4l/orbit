@@ -1,6 +1,6 @@
-# Orbit Puzzles (PWA)
+# Orbit Sandbox (PWA)
 
-Mobile-first gravity puzzle game built with **Vite + TypeScript + PixiJS**. Drag suns, spawn planets, stabilize orbits, and clear 10 levels.
+Mobile-first gravity sandbox built with **Vite + TypeScript + PixiJS**. Drag stars and planets into the scene and let their mutual gravity create chaotic motion.
 
 ## Quick start
 
@@ -18,12 +18,12 @@ npm run preview
 
 ## Controls
 
-- Drag a movable sun to reshape gravity fields.
-- Drag existing planets to reposition them before releasing.
+- Drag a movable star to reshape gravity fields.
+- Drag existing stars and planets to reposition them before releasing.
 - Drag a body card from the bottom palette into the playfield to spawn that type.
-- Star cards spawn movable gravity sources; level 1 starts without a central star.
+- Star cards spawn movable gravity sources that drift more slowly than planets.
 - `Pause`, `Restart`, `Trails`, and `Preview` are available in HUD.
-- While dragging a sun, simulation runs in bullet-time and preview trajectories appear.
+- While dragging a star, simulation runs in bullet-time and preview trajectories appear.
 
 ## Project structure
 
@@ -43,25 +43,11 @@ npm run preview
   style.css
 ```
 
-## Level authoring
+## Sandbox tuning
 
-Levels live in `src/levels/levels.json` and are validated at runtime by `src/levels/levelSchema.ts`.
-
-Each level supports:
-
-- `bounds` (world size)
-- `suns[]` (mass, radius, movable, softening)
-- `planets[]` (initial position/velocity and body params)
-- `walls[]` (rectangular bounce walls)
-- `hazards[]` (`circle` or `rect` fail zones)
-- `winCondition` (`requiredPlanets`, `stableSeconds`, orbit thresholds)
-- `rules` (`maxPlanets`, `spawnSpeed`, `sunMoveAfterPlaced`, `failOnSunCollision`)
-
-### Add a new level
-
-1. Append a new object to `src/levels/levels.json`.
-2. Keep required fields aligned with `LevelDefinition` in `src/levels/levelSchema.ts`.
-3. Run `npm run build` to validate and bundle.
+- Planet archetypes: `src/game/planetTypes.ts`
+- Star archetypes: `src/game/starTypes.ts`
+- Gravity/chaos tuning: `src/core/config.ts`
 
 ## PWA + offline behavior
 
@@ -89,5 +75,5 @@ Each level supports:
 ## Notes
 
 - Physics model is game-oriented, not physically exact.
-- Gravity is sun-only (no planet-planet gravity) by design.
+- Planets and stars both contribute to gravity.
 - Fixed timestep simulation runs at 60 Hz and automatically drops render cap to 30 FPS on slower devices.

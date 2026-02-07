@@ -66,7 +66,7 @@ export class Hud {
 
     this.orbitLabel = document.createElement('div');
     this.orbitLabel.className = 'hud-pill';
-    this.orbitLabel.textContent = 'Orbit 0/0';
+    this.orbitLabel.textContent = 'Sandbox';
 
     this.pauseButton = this.makeButton('Pause', () => this.callbacks.onPauseToggle());
     this.restartButton = this.makeButton('Restart', () => this.callbacks.onRestart());
@@ -151,6 +151,14 @@ export class Hud {
 
   setLevel(index: number, total: number, name: string): void {
     this.levelLabel.textContent = `Level ${index + 1}/${total}: ${name}`;
+  }
+
+  setTitle(label: string): void {
+    this.levelLabel.textContent = label;
+  }
+
+  setStatus(label: string): void {
+    this.orbitLabel.textContent = label;
   }
 
   setOrbitProgress(stable: number, target: number, secondsLeft: number): void {

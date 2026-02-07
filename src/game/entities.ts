@@ -8,6 +8,10 @@ import {
 
 export interface SunEntity extends LevelSunDefinition {
   id: string;
+  vel: Vec2;
+  maxSpeed: number;
+  drag: number;
+  mobility: number;
 }
 
 export interface PlanetEntity {
@@ -39,6 +43,10 @@ const cloneVec = (v: Vec2): Vec2 => ({ x: v.x, y: v.y });
 export const createSunEntity = (source: LevelSunDefinition, index: number): SunEntity => ({
   id: `sun-${index}`,
   pos: cloneVec(source.pos),
+  vel: { x: 0, y: 0 },
+  maxSpeed: 14,
+  drag: 0.2,
+  mobility: 0.32,
   mass: source.mass,
   visualRadius: source.visualRadius,
   gravityRadius: source.gravityRadius,

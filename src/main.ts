@@ -3,21 +3,18 @@ import './style.css';
 import { GAME_CONFIG } from './core/config';
 import { clamp, distanceSquared, length, normalize, perp, scale, sub, type Vec2 } from './core/math';
 import { FixedStepClock } from './core/time';
-import { createPlanetEntity, type PlanetEntity, type SunEntity } from './game/entities';
+import {
+  createPlanetEntity,
+  type HazardEntity,
+  type PlanetEntity,
+  type SunEntity,
+  type WallEntity
+} from './game/entities';
 import { PointerInput, type DragTarget } from './game/input';
-import { LevelManager, type ActiveLevel } from './game/levelManager';
 import { PLANET_TYPES, computePlanetMass } from './game/planetTypes';
 import { STAR_TYPES } from './game/starTypes';
 import { GameStateMachine } from './game/stateMachine';
-import { updateOrbitProgress } from './game/winConditions';
-import {
-  doesCircleOverlapHazard,
-  doesCircleOverlapWall,
-  isCollidingWithSun,
-  isInHazard,
-  isOutOfBounds,
-  resolveWallCollisions
-} from './physics/collisions';
+import { doesCircleOverlapHazard, doesCircleOverlapWall, resolveWallCollisions } from './physics/collisions';
 import { computeGravityWithPlanets } from './physics/gravity';
 import { integratePlanet } from './physics/integrator';
 import { buildTrajectoryPreview, type PreviewLine } from './physics/preview';
@@ -25,25 +22,43 @@ import { Hud } from './render/hud';
 import { GameRenderer } from './render/renderer';
 import type { LevelPlanetDefinition } from './levels/levelSchema';
 
+const WORLD_WIDTH = 160;
+const STAR_THROW_SCALE = 0.28;
+const PLANET_THROW_SCALE = 0.62;
+const STAR_BOUNCE = 0.72;
+const SANDBOX_SPAWN_SPEED = 12;
+
+const boundsFromViewport = (): { width: number; height: number } => {
+  const viewWidth = Math.max(window.innerWidth, 1);
+  const viewHeight = Math.max(window.innerHeight, 1);
+  return {
+    width: WORLD_WIDTH,
+    height: WORLD_WIDTH * (viewHeight / viewWidth)
+  };
+};
+
 class OrbitPuzzlesGame {
-  private readonly levelManager = new LevelManager();
   private readonly state = new GameStateMachine();
   private readonly clock = new FixedStepClock();
   private readonly renderer: GameRenderer;
   private readonly hud: Hud;
   private readonly input: PointerInput;
 
-  private activeLevel: ActiveLevel;
+  private bounds = boundsFromViewport();
   private suns: SunEntity[] = [];
   private planets: PlanetEntity[] = [];
+  private walls: WallEntity[] = [];
+  private hazards: HazardEntity[] = [];
   private previewLines: PreviewLine[] = [];
 
   private dragTarget: DragTarget | null = null;
+  private dragLastPos: Vec2 | null = null;
+  private dragLastTimeMs = 0;
+  private dragVelocity: Vec2 = { x: 0, y: 0 };
+
   private trailsEnabled = true;
   private previewEnabled = true;
 
-  private orbitBestTimer = 0;
-  private playerSpawned = 0;
   private spawnSequence = 0;
   private sunSpawnSequence = 0;
   private previewSteps: number = GAME_CONFIG.preview.defaultSteps;
@@ -53,21 +68,22 @@ class OrbitPuzzlesGame {
   private lowPowerMode = false;
 
   constructor(parent: HTMLElement) {
-    this.activeLevel = this.levelManager.load(0);
-    this.suns = this.activeLevel.suns;
-    this.planets = this.activeLevel.planets;
+    this.renderer = new GameRenderer(parent, this.bounds);
 
-    this.renderer = new GameRenderer(parent, this.activeLevel.definition.bounds);
-
-    this.hud = new Hud(this.renderer.hudHost, {
-      onPauseToggle: this.handlePauseToggle,
-      onRestart: this.handleRestart,
-      onTrailsToggle: this.handleTrailsToggle,
-      onPreviewToggle: this.handlePreviewToggle,
-      onPaletteDrop: this.handlePaletteDrop,
-      onNextLevel: this.handleNextLevel,
-      onRetry: this.handleRestart
-    }, PLANET_TYPES, STAR_TYPES);
+    this.hud = new Hud(
+      this.renderer.hudHost,
+      {
+        onPauseToggle: this.handlePauseToggle,
+        onRestart: this.handleRestart,
+        onTrailsToggle: this.handleTrailsToggle,
+        onPreviewToggle: this.handlePreviewToggle,
+        onPaletteDrop: this.handlePaletteDrop,
+        onNextLevel: this.handleRestart,
+        onRetry: this.handleRestart
+      },
+      PLANET_TYPES,
+      STAR_TYPES
+    );
 
     this.input = new PointerInput(this.renderer.interactionElement, {
       toWorld: (x, y) => this.renderer.worldFromClient(x, y),
@@ -81,8 +97,9 @@ class OrbitPuzzlesGame {
 
     window.addEventListener('online', this.updateOfflineStatus);
     window.addEventListener('offline', this.updateOfflineStatus);
+    window.addEventListener('resize', this.handleViewportResize);
 
-    this.applyLevel(this.activeLevel);
+    this.resetSandbox();
 
     this.renderer.app.ticker.maxFPS = 60;
     this.renderer.app.ticker.add(() => this.frame(this.renderer.app.ticker.deltaMS / 1000));
@@ -92,6 +109,7 @@ class OrbitPuzzlesGame {
   destroy(): void {
     window.removeEventListener('online', this.updateOfflineStatus);
     window.removeEventListener('offline', this.updateOfflineStatus);
+    window.removeEventListener('resize', this.handleViewportResize);
     this.input.destroy();
     this.hud.destroy();
     this.renderer.destroy();
@@ -106,6 +124,7 @@ class OrbitPuzzlesGame {
     }
 
     this.updatePreview(realDelta);
+
     this.renderer.syncSuns(this.suns, this.dragTarget?.kind === 'sun' ? this.dragTarget.id : null);
     this.renderer.syncPlanets(this.planets, this.dragTarget?.kind === 'planet' ? this.dragTarget.id : null);
 
@@ -114,33 +133,60 @@ class OrbitPuzzlesGame {
     } else {
       this.renderer.clearPreview();
     }
+
+    this.hud.setStatus(this.getSandboxStatus());
   }
 
   private stepSimulation(dt: number): void {
-    const bounds = this.activeLevel.definition.bounds;
     const draggedPlanetId = this.dragTarget?.kind === 'planet' ? this.dragTarget.id : null;
-    const gravitySources = this.planets.map((planet) => ({
+    const draggedSunId = this.dragTarget?.kind === 'sun' ? this.dragTarget.id : null;
+
+    const planetSources = this.planets.map((planet) => ({
       id: planet.id,
       pos: { x: planet.pos.x, y: planet.pos.y },
       mass: planet.mass
     }));
-    const accelByPlanet = new Map<string, Vec2>();
 
-    for (const planet of this.planets) {
-      if (planet.id === draggedPlanetId) {
-        accelByPlanet.set(planet.id, { x: 0, y: 0 });
+    for (const sun of this.suns) {
+      if (sun.id === draggedSunId) {
+        sun.vel.x = 0;
+        sun.vel.y = 0;
         continue;
       }
 
-      const accel = computeGravityWithPlanets(planet, this.suns, gravitySources, {
-        gravityConstant: GAME_CONFIG.physics.gravityConstant,
-        minDistance: GAME_CONFIG.physics.minDistanceForGravity,
-        enablePlanetGravity: GAME_CONFIG.physics.enablePlanetGravity,
-        planetGravityScale: GAME_CONFIG.physics.planetGravityScale,
-        planetSofteningEpsilon: GAME_CONFIG.physics.planetGravitySoftening,
-        planetMaxAccel: GAME_CONFIG.physics.planetGravityMaxAccel
-      });
-      accelByPlanet.set(planet.id, accel);
+      const accel = computeGravityWithPlanets(
+        { id: sun.id, pos: sun.pos },
+        this.suns,
+        planetSources,
+        {
+          gravityConstant: GAME_CONFIG.physics.gravityConstant,
+          minDistance: GAME_CONFIG.physics.minDistanceForGravity,
+          enablePlanetGravity: true,
+          planetGravityScale: GAME_CONFIG.physics.planetGravityScale,
+          planetSofteningEpsilon: GAME_CONFIG.physics.planetGravitySoftening,
+          planetMaxAccel: GAME_CONFIG.physics.planetGravityMaxAccel
+        }
+      );
+
+      sun.vel.x += accel.x * dt * sun.mobility;
+      sun.vel.y += accel.y * dt * sun.mobility;
+
+      if (sun.drag > 0) {
+        const dragFactor = Math.max(0, 1 - sun.drag * dt);
+        sun.vel.x *= dragFactor;
+        sun.vel.y *= dragFactor;
+      }
+
+      const speed = length(sun.vel);
+      if (speed > sun.maxSpeed && speed > 1e-6) {
+        const ratio = sun.maxSpeed / speed;
+        sun.vel.x *= ratio;
+        sun.vel.y *= ratio;
+      }
+
+      sun.pos.x += sun.vel.x * dt;
+      sun.pos.y += sun.vel.y * dt;
+      this.resolveBoundsBounce(sun.pos, sun.vel, sun.visualRadius, STAR_BOUNCE);
     }
 
     for (const planet of this.planets) {
@@ -150,53 +196,27 @@ class OrbitPuzzlesGame {
         continue;
       }
 
-      const accel = accelByPlanet.get(planet.id) ?? { x: 0, y: 0 };
+      const accel = computeGravityWithPlanets(planet, this.suns, planetSources, {
+        gravityConstant: GAME_CONFIG.physics.gravityConstant,
+        minDistance: GAME_CONFIG.physics.minDistanceForGravity,
+        enablePlanetGravity: GAME_CONFIG.physics.enablePlanetGravity,
+        planetGravityScale: GAME_CONFIG.physics.planetGravityScale,
+        planetSofteningEpsilon: GAME_CONFIG.physics.planetGravitySoftening,
+        planetMaxAccel: GAME_CONFIG.physics.planetGravityMaxAccel
+      });
 
       const stable = integratePlanet(planet, accel, dt, {
         globalDrag: GAME_CONFIG.physics.globalDrag
       });
 
       if (!stable) {
-        this.failLevel('Simulation became unstable.');
-        return;
+        planet.pos = { x: this.bounds.width * 0.5, y: this.bounds.height * 0.5 };
+        planet.vel = { x: 0, y: 0 };
       }
 
-      resolveWallCollisions(planet, this.activeLevel.walls);
+      resolveWallCollisions(planet, this.walls);
+      this.resolveBoundsBounce(planet.pos, planet.vel, planet.radius, planet.restitution);
       this.updateTrail(planet, dt);
-
-      if (isOutOfBounds(planet, bounds)) {
-        this.failLevel('A planet escaped the playfield.');
-        return;
-      }
-
-      if (isInHazard(planet, this.activeLevel.hazards)) {
-        this.failLevel('A planet touched a hazard zone.');
-        return;
-      }
-
-      if (
-        this.activeLevel.definition.rules.failOnSunCollision &&
-        isCollidingWithSun(planet, this.suns, 0.8)
-      ) {
-        this.failLevel('A planet collided with a sun.');
-        return;
-      }
-    }
-
-    const orbit = updateOrbitProgress(this.planets, this.suns, this.activeLevel.definition.winCondition, dt);
-    this.orbitBestTimer = this.planets.reduce(
-      (best, planet) => Math.max(best, planet.orbitStableTime),
-      this.orbitBestTimer
-    );
-
-    this.hud.setOrbitProgress(
-      orbit.stablePlanets,
-      orbit.targetPlanets,
-      orbit.stableSeconds - this.orbitBestTimer
-    );
-
-    if (orbit.reached) {
-      this.winLevel();
     }
   }
 
@@ -206,7 +226,6 @@ class OrbitPuzzlesGame {
 
     planet.trailAccumulator = 0;
     planet.trail.push({ x: planet.pos.x, y: planet.pos.y });
-
     while (planet.trail.length > GAME_CONFIG.trails.maxTrailPoints) {
       planet.trail.shift();
     }
@@ -214,11 +233,7 @@ class OrbitPuzzlesGame {
 
   private updatePreview(realDelta: number): void {
     const dragTarget = this.dragTarget;
-    if (
-      !this.previewEnabled ||
-      dragTarget?.kind !== 'sun' ||
-      this.state.current !== 'playing'
-    ) {
+    if (!this.previewEnabled || dragTarget?.kind !== 'sun' || this.state.current !== 'playing') {
       if (this.previewLines.length > 0) {
         this.previewLines = [];
       }
@@ -240,8 +255,8 @@ class OrbitPuzzlesGame {
       candidates,
       this.suns,
       this.planets,
-      this.activeLevel.definition.bounds,
-      this.activeLevel.hazards,
+      this.bounds,
+      this.hazards,
       {
         dt: GAME_CONFIG.physics.fixedTimeStep,
         steps: this.previewSteps,
@@ -268,56 +283,35 @@ class OrbitPuzzlesGame {
   }
 
   private pickDragTarget(worldPos: Vec2): DragTarget | null {
-    const planetId = this.pickDraggablePlanet(worldPos);
-    if (planetId) {
-      return { kind: 'planet', id: planetId };
-    }
-
-    const sunId = this.pickMovableSun(worldPos);
-    if (sunId) {
-      return { kind: 'sun', id: sunId };
-    }
-
-    return null;
-  }
-
-  private pickDraggablePlanet(worldPos: Vec2): string | null {
     if (this.state.current !== 'playing') return null;
 
-    let picked: PlanetEntity | null = null;
-    let bestDistance = Number.POSITIVE_INFINITY;
-
+    let pickedPlanet: PlanetEntity | null = null;
+    let bestPlanetDistance = Number.POSITIVE_INFINITY;
     for (const planet of this.planets) {
       const radius = planet.radius * 1.9;
       const distSq = distanceSquared(worldPos, planet.pos);
-      if (distSq <= radius * radius && distSq < bestDistance) {
-        bestDistance = distSq;
-        picked = planet;
+      if (distSq <= radius * radius && distSq < bestPlanetDistance) {
+        bestPlanetDistance = distSq;
+        pickedPlanet = planet;
       }
     }
+    if (pickedPlanet) {
+      return { kind: 'planet', id: pickedPlanet.id };
+    }
 
-    return picked?.id ?? null;
-  }
-
-  private pickMovableSun(worldPos: Vec2): string | null {
-    if (this.state.current !== 'playing') return null;
-
-    let picked: SunEntity | null = null;
-    let bestDistance = Number.POSITIVE_INFINITY;
-
+    let pickedSun: SunEntity | null = null;
+    let bestSunDistance = Number.POSITIVE_INFINITY;
     for (const sun of this.suns) {
       if (!sun.movable) continue;
-      if (!this.activeLevel.definition.rules.sunMoveAfterPlaced && this.playerSpawned > 0) continue;
-
-      const radius = sun.visualRadius * 1.65;
+      const radius = sun.visualRadius * 1.75;
       const distSq = distanceSquared(worldPos, sun.pos);
-      if (distSq <= radius * radius && distSq < bestDistance) {
-        bestDistance = distSq;
-        picked = sun;
+      if (distSq <= radius * radius && distSq < bestSunDistance) {
+        bestSunDistance = distSq;
+        pickedSun = sun;
       }
     }
 
-    return picked?.id ?? null;
+    return pickedSun ? { kind: 'sun', id: pickedSun.id } : null;
   }
 
   private startDrag(target: DragTarget, worldPos: Vec2): void {
@@ -325,81 +319,129 @@ class OrbitPuzzlesGame {
 
     this.dragTarget = target;
     this.previewLines = [];
+    this.dragLastPos = { x: worldPos.x, y: worldPos.y };
+    this.dragLastTimeMs = performance.now();
+    this.dragVelocity = { x: 0, y: 0 };
 
     if (target.kind === 'sun') {
-      this.moveSun(target.id, worldPos);
+      this.moveSun(target.id, worldPos, true);
     } else {
-      this.movePlanet(target.id, worldPos);
+      this.movePlanet(target.id, worldPos, true);
     }
-
   }
 
   private moveDrag(target: DragTarget, worldPos: Vec2): void {
+    this.captureDragVelocity(worldPos);
+
     if (target.kind === 'sun') {
-      this.moveSun(target.id, worldPos);
+      this.moveSun(target.id, worldPos, true);
       return;
     }
-    this.movePlanet(target.id, worldPos);
+
+    this.movePlanet(target.id, worldPos, true);
   }
 
   private endDrag(target: DragTarget, worldPos: Vec2): void {
     this.moveDrag(target, worldPos);
-    if (this.dragTarget?.id === target.id && this.dragTarget.kind === target.kind) {
+
+    if (target.kind === 'sun') {
+      const sun = this.suns.find((entry) => entry.id === target.id);
+      if (sun) {
+        sun.vel = scale(this.dragVelocity, STAR_THROW_SCALE);
+      }
+    } else {
+      const planet = this.planets.find((entry) => entry.id === target.id);
+      if (planet) {
+        planet.vel = scale(this.dragVelocity, PLANET_THROW_SCALE);
+      }
+    }
+
+    if (this.dragTarget?.kind === target.kind && this.dragTarget.id === target.id) {
       this.dragTarget = null;
       this.previewLines = [];
       this.previewCooldown = 0;
+      this.dragLastPos = null;
+      this.dragLastTimeMs = 0;
+      this.dragVelocity = { x: 0, y: 0 };
     }
   }
 
-  private moveSun(sunId: string, worldPos: Vec2): void {
+  private moveSun(sunId: string, worldPos: Vec2, stopVelocity: boolean): void {
     const sun = this.suns.find((item) => item.id === sunId);
     if (!sun) return;
 
-    const bounds = this.activeLevel.definition.bounds;
-    sun.pos.x = clamp(worldPos.x, sun.visualRadius, bounds.width - sun.visualRadius);
-    sun.pos.y = clamp(worldPos.y, sun.visualRadius, bounds.height - sun.visualRadius);
+    sun.pos.x = clamp(worldPos.x, sun.visualRadius, this.bounds.width - sun.visualRadius);
+    sun.pos.y = clamp(worldPos.y, sun.visualRadius, this.bounds.height - sun.visualRadius);
+
+    if (stopVelocity) {
+      sun.vel.x = 0;
+      sun.vel.y = 0;
+    }
 
     this.previewCooldown = 0;
   }
 
-  private movePlanet(planetId: string, worldPos: Vec2): void {
+  private movePlanet(planetId: string, worldPos: Vec2, stopVelocity: boolean): void {
     const planet = this.planets.find((item) => item.id === planetId);
     if (!planet) return;
 
-    const bounds = this.activeLevel.definition.bounds;
-    planet.pos.x = clamp(worldPos.x, planet.radius, bounds.width - planet.radius);
-    planet.pos.y = clamp(worldPos.y, planet.radius, bounds.height - planet.radius);
-    planet.vel.x = 0;
-    planet.vel.y = 0;
+    planet.pos.x = clamp(worldPos.x, planet.radius, this.bounds.width - planet.radius);
+    planet.pos.y = clamp(worldPos.y, planet.radius, this.bounds.height - planet.radius);
+
+    if (stopVelocity) {
+      planet.vel.x = 0;
+      planet.vel.y = 0;
+    }
     planet.orbitStableTime = 0;
 
     this.previewCooldown = 0;
   }
 
-  private spawnPlanet(worldPos: Vec2, type: (typeof PLANET_TYPES)[number]): void {
-    if (this.state.current !== 'playing') return;
-
-    if (this.planets.length >= GAME_CONFIG.gameplay.maxPlanets) {
+  private captureDragVelocity(worldPos: Vec2): void {
+    const now = performance.now();
+    if (!this.dragLastPos || this.dragLastTimeMs <= 0) {
+      this.dragLastPos = { x: worldPos.x, y: worldPos.y };
+      this.dragLastTimeMs = now;
       return;
     }
 
-    const radius = type.radius;
-    const bounds = this.activeLevel.definition.bounds;
-    const safePos = {
-      x: clamp(worldPos.x, radius + 0.5, bounds.width - radius - 0.5),
-      y: clamp(worldPos.y, radius + 0.5, bounds.height - radius - 0.5)
+    const dt = (now - this.dragLastTimeMs) / 1000;
+    if (dt <= 1e-4) return;
+
+    const instantVelocity = {
+      x: (worldPos.x - this.dragLastPos.x) / dt,
+      y: (worldPos.y - this.dragLastPos.y) / dt
     };
 
-    if (!this.canSpawnPlanetAt(safePos, radius)) {
-      return;
-    }
+    const blend = 0.35;
+    this.dragVelocity = {
+      x: this.dragVelocity.x * (1 - blend) + instantVelocity.x * blend,
+      y: this.dragVelocity.y * (1 - blend) + instantVelocity.y * blend
+    };
+
+    this.dragLastPos = { x: worldPos.x, y: worldPos.y };
+    this.dragLastTimeMs = now;
+  }
+
+  private spawnPlanet(worldPos: Vec2, type: (typeof PLANET_TYPES)[number]): void {
+    if (this.state.current !== 'playing') return;
+    if (this.planets.length >= GAME_CONFIG.gameplay.maxPlanets) return;
+
+    const radius = type.radius;
+    const safePos = {
+      x: clamp(worldPos.x, radius + 0.5, this.bounds.width - radius - 0.5),
+      y: clamp(worldPos.y, radius + 0.5, this.bounds.height - radius - 0.5)
+    };
+
+    if (!this.canSpawnPlanetAt(safePos, radius)) return;
 
     const nearestSun = this.findNearestSun(safePos);
     const velocity = this.estimateSpawnVelocity(
       safePos,
       nearestSun,
       this.spawnSequence,
-      this.activeLevel.definition.rules.spawnSpeed
+      SANDBOX_SPAWN_SPEED,
+      type.maxSpeed
     );
 
     const newPlanetData: LevelPlanetDefinition = {
@@ -414,7 +456,6 @@ class OrbitPuzzlesGame {
 
     const planet = createPlanetEntity(newPlanetData, this.spawnSequence, true);
     this.spawnSequence += 1;
-    this.playerSpawned += 1;
     this.planets.push(planet);
   }
 
@@ -422,17 +463,16 @@ class OrbitPuzzlesGame {
     if (this.state.current !== 'playing') return;
     if (this.suns.length >= GAME_CONFIG.gameplay.maxSuns) return;
 
-    const bounds = this.activeLevel.definition.bounds;
     const safePos = {
-      x: clamp(worldPos.x, type.visualRadius, bounds.width - type.visualRadius),
-      y: clamp(worldPos.y, type.visualRadius, bounds.height - type.visualRadius)
+      x: clamp(worldPos.x, type.visualRadius, this.bounds.width - type.visualRadius),
+      y: clamp(worldPos.y, type.visualRadius, this.bounds.height - type.visualRadius)
     };
 
-    if (doesCircleOverlapHazard(safePos, type.visualRadius, this.activeLevel.hazards)) return;
-    if (doesCircleOverlapWall(safePos, type.visualRadius, this.activeLevel.walls)) return;
+    if (doesCircleOverlapHazard(safePos, type.visualRadius, this.hazards)) return;
+    if (doesCircleOverlapWall(safePos, type.visualRadius, this.walls)) return;
 
     const sunOverlap = this.suns.some((sun) => {
-      const minGap = sun.visualRadius + type.visualRadius + 1.6;
+      const minGap = sun.visualRadius + type.visualRadius + 1.4;
       return distanceSquared(sun.pos, safePos) <= minGap * minGap;
     });
     if (sunOverlap) return;
@@ -443,9 +483,15 @@ class OrbitPuzzlesGame {
     });
     if (planetOverlap) return;
 
+    const maxSpeed = clamp(22 - type.visualRadius * 1.8, 8, 16);
+
     this.suns.push({
       id: `spawn-sun-${this.sunSpawnSequence}`,
       pos: safePos,
+      vel: { x: 0, y: 0 },
+      maxSpeed,
+      drag: 0.24,
+      mobility: 0.33,
       mass: type.mass,
       visualRadius: type.visualRadius,
       gravityRadius: type.gravityRadius,
@@ -457,13 +503,8 @@ class OrbitPuzzlesGame {
   }
 
   private canSpawnPlanetAt(position: Vec2, radius: number): boolean {
-    if (doesCircleOverlapHazard(position, radius, this.activeLevel.hazards)) {
-      return false;
-    }
-
-    if (doesCircleOverlapWall(position, radius, this.activeLevel.walls)) {
-      return false;
-    }
+    if (doesCircleOverlapHazard(position, radius, this.hazards)) return false;
+    if (doesCircleOverlapWall(position, radius, this.walls)) return false;
 
     for (const sun of this.suns) {
       const exclusionRadius = sun.visualRadius * 1.6 + radius;
@@ -486,10 +527,11 @@ class OrbitPuzzlesGame {
     spawnPos: Vec2,
     nearestSun: SunEntity | null,
     sequence: number,
-    configuredSpeed: number
+    configuredSpeed: number,
+    maxSpeed: number
   ): Vec2 {
     if (!nearestSun) {
-      return { x: configuredSpeed, y: 0 };
+      return { x: sequence % 2 === 0 ? configuredSpeed : -configuredSpeed, y: 0 };
     }
 
     const radial = sub(spawnPos, nearestSun.pos);
@@ -503,12 +545,7 @@ class OrbitPuzzlesGame {
       (GAME_CONFIG.physics.gravityConstant * nearestSun.mass) / Math.max(distanceToSun, 1)
     );
 
-    const speed = clamp(
-      (orbitalEstimate + configuredSpeed) * 0.5,
-      this.activeLevel.definition.winCondition.orbit.minSpeed,
-      this.activeLevel.definition.winCondition.orbit.maxSpeed
-    );
-
+    const speed = clamp((orbitalEstimate + configuredSpeed) * 0.5, 2, maxSpeed * 0.88);
     const direction = sequence % 2 === 0 ? 1 : -1;
     return scale(tangent, speed * direction);
   }
@@ -528,77 +565,79 @@ class OrbitPuzzlesGame {
     return nearest;
   }
 
-  private winLevel(): void {
-    if (this.state.current !== 'playing') return;
-    this.state.setWin();
-    this.dragTarget = null;
-    this.previewLines = [];
-    this.hud.setPauseState(this.state.current);
-    const hasNext = this.levelManager.index < this.levelManager.levelCount - 1;
-    this.hud.showWin(hasNext);
+  private resolveBoundsBounce(pos: Vec2, vel: Vec2, radius: number, restitution: number): void {
+    if (pos.x < radius) {
+      pos.x = radius;
+      if (vel.x < 0) vel.x = Math.abs(vel.x) * restitution;
+    } else if (pos.x > this.bounds.width - radius) {
+      pos.x = this.bounds.width - radius;
+      if (vel.x > 0) vel.x = -Math.abs(vel.x) * restitution;
+    }
+
+    if (pos.y < radius) {
+      pos.y = radius;
+      if (vel.y < 0) vel.y = Math.abs(vel.y) * restitution;
+    } else if (pos.y > this.bounds.height - radius) {
+      pos.y = this.bounds.height - radius;
+      if (vel.y > 0) vel.y = -Math.abs(vel.y) * restitution;
+    }
   }
 
-  private failLevel(message: string): void {
-    if (this.state.current !== 'playing') return;
-    this.state.setFail(message);
-    this.dragTarget = null;
-    this.previewLines = [];
-    this.hud.setPauseState(this.state.current);
-    this.hud.showFail(message);
-  }
-
-  private applyLevel(level: ActiveLevel): void {
-    this.activeLevel = level;
-    this.suns = level.suns;
-    this.planets = level.planets;
-    this.dragTarget = null;
-    this.playerSpawned = 0;
-    this.spawnSequence = 0;
-    this.sunSpawnSequence = 0;
-    this.orbitBestTimer = 0;
-    this.previewLines = [];
-    this.previewCooldown = 0;
-
+  private resetSandbox(): void {
     this.state.setPlaying();
     this.clock.reset();
 
-    const bounds = level.definition.bounds;
-    this.renderer.setBounds(bounds);
-    this.renderer.drawStaticGeometry(level.hazards, level.walls);
+    this.suns = [];
+    this.planets = [];
+    this.walls = [];
+    this.hazards = [];
+
+    this.dragTarget = null;
+    this.dragLastPos = null;
+    this.dragLastTimeMs = 0;
+    this.dragVelocity = { x: 0, y: 0 };
+
+    this.spawnSequence = 0;
+    this.sunSpawnSequence = 0;
+
+    this.previewLines = [];
+    this.previewCooldown = 0;
+
+    this.bounds = boundsFromViewport();
+    this.renderer.setBounds(this.bounds);
+    this.renderer.drawStaticGeometry(this.hazards, this.walls);
     this.renderer.setTrailsEnabled(this.trailsEnabled);
     this.renderer.clearPreview();
 
     this.hud.hideOverlay();
-    this.hud.setLevel(level.levelIndex, this.levelManager.levelCount, level.definition.name);
+    this.hud.setTitle('Sandbox');
+    this.hud.setStatus(this.getSandboxStatus());
     this.hud.setPauseState(this.state.current);
     this.hud.setTrailsState(this.trailsEnabled);
     this.hud.setPreviewState(this.previewEnabled);
-    this.hud.setOrbitProgress(0, level.definition.winCondition.requiredPlanets, level.definition.winCondition.stableSeconds);
 
     this.renderer.syncSuns(this.suns, null);
     this.renderer.syncPlanets(this.planets, null);
   }
 
-  private handlePauseToggle = (): void => {
-    if (this.state.current === 'win' || this.state.current === 'fail') return;
+  private getSandboxStatus(): string {
+    return `Bodies P${this.planets.length} S${this.suns.length}`;
+  }
 
+  private handlePauseToggle = (): void => {
     this.state.togglePause();
     if (this.state.current !== 'playing') {
       this.dragTarget = null;
       this.previewLines = [];
       this.previewCooldown = 0;
+      this.dragLastPos = null;
+      this.dragVelocity = { x: 0, y: 0 };
     }
-
     this.hud.setPauseState(this.state.current);
   };
 
   private handleRestart = (): void => {
-    this.applyLevel(this.levelManager.restart());
-  };
-
-  private handleNextLevel = (): void => {
-    const nextLevel = this.levelManager.next();
-    this.applyLevel(nextLevel ?? this.levelManager.load(0));
+    this.resetSandbox();
   };
 
   private handlePaletteDrop = (
@@ -608,6 +647,7 @@ class OrbitPuzzlesGame {
     clientY: number
   ): void => {
     if (this.state.current !== 'playing') return;
+
     const canvasRect = this.renderer.interactionElement.getBoundingClientRect();
     if (
       clientX < canvasRect.left ||
@@ -626,14 +666,16 @@ class OrbitPuzzlesGame {
 
     if (kind === 'planet') {
       const planetType = PLANET_TYPES.find((entry) => entry.id === typeId);
-      if (!planetType) return;
-      this.spawnPlanet(worldPos, planetType);
+      if (planetType) {
+        this.spawnPlanet(worldPos, planetType);
+      }
       return;
     }
 
     const starType = STAR_TYPES.find((entry) => entry.id === typeId);
-    if (!starType) return;
-    this.spawnSun(worldPos, starType);
+    if (starType) {
+      this.spawnSun(worldPos, starType);
+    }
   };
 
   private handleTrailsToggle = (): void => {
@@ -652,6 +694,21 @@ class OrbitPuzzlesGame {
 
   private updateOfflineStatus = (): void => {
     this.hud.setOffline(!navigator.onLine);
+  };
+
+  private handleViewportResize = (): void => {
+    this.bounds = boundsFromViewport();
+    this.renderer.setBounds(this.bounds);
+
+    for (const sun of this.suns) {
+      sun.pos.x = clamp(sun.pos.x, sun.visualRadius, this.bounds.width - sun.visualRadius);
+      sun.pos.y = clamp(sun.pos.y, sun.visualRadius, this.bounds.height - sun.visualRadius);
+    }
+
+    for (const planet of this.planets) {
+      planet.pos.x = clamp(planet.pos.x, planet.radius, this.bounds.width - planet.radius);
+      planet.pos.y = clamp(planet.pos.y, planet.radius, this.bounds.height - planet.radius);
+    }
   };
 
   private updatePerformanceMode(realDelta: number): void {

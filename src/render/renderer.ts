@@ -243,13 +243,6 @@ export class GameRenderer {
 
   private drawBounds(): void {
     this.boundsGraphics.clear();
-
-    this.boundsGraphics.beginFill(0x0d2238, 0.15);
-    this.boundsGraphics.drawRect(0, 0, this.bounds.width, this.bounds.height);
-    this.boundsGraphics.endFill();
-
-    this.boundsGraphics.lineStyle(1.8, 0x9dcdf8, 0.44);
-    this.boundsGraphics.drawRect(0, 0, this.bounds.width, this.bounds.height);
   }
 
   private resize = (): void => {
