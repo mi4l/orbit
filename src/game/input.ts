@@ -1,20 +1,25 @@
 import type { Vec2 } from '../core/math';
 
+export interface DragTarget {
+  kind: 'sun' | 'planet';
+  id: string;
+}
+
 export interface InputCallbacks {
   toWorld(clientX: number, clientY: number): Vec2 | null;
   isSpawnMode(): boolean;
-  pickSun(worldPos: Vec2): string | null;
+  pickDragTarget(worldPos: Vec2): DragTarget | null;
   onSpawnTap(worldPos: Vec2): void;
-  onSunDragStart(sunId: string, worldPos: Vec2): void;
-  onSunDragMove(sunId: string, worldPos: Vec2): void;
-  onSunDragEnd(sunId: string, worldPos: Vec2): void;
+  onDragStart(target: DragTarget, worldPos: Vec2): void;
+  onDragMove(target: DragTarget, worldPos: Vec2): void;
+  onDragEnd(target: DragTarget, worldPos: Vec2): void;
 }
 
 export class PointerInput {
   private readonly element: HTMLElement;
   private readonly callbacks: InputCallbacks;
   private dragPointerId: number | null = null;
-  private dragSunId: string | null = null;
+  private dragTarget: DragTarget | null = null;
 
   constructor(element: HTMLElement, callbacks: InputCallbacks) {
     this.element = element;
@@ -47,28 +52,28 @@ export class PointerInput {
       return;
     }
 
-    const pickedSun = this.callbacks.pickSun(worldPos);
-    if (!pickedSun) return;
+    const pickedTarget = this.callbacks.pickDragTarget(worldPos);
+    if (!pickedTarget) return;
 
     this.dragPointerId = event.pointerId;
-    this.dragSunId = pickedSun;
+    this.dragTarget = pickedTarget;
     this.element.setPointerCapture(event.pointerId);
-    this.callbacks.onSunDragStart(pickedSun, worldPos);
+    this.callbacks.onDragStart(pickedTarget, worldPos);
   };
 
   private onPointerMove = (event: PointerEvent): void => {
-    if (this.dragPointerId !== event.pointerId || !this.dragSunId) return;
+    if (this.dragPointerId !== event.pointerId || !this.dragTarget) return;
     const worldPos = this.callbacks.toWorld(event.clientX, event.clientY);
     if (!worldPos) return;
     event.preventDefault();
-    this.callbacks.onSunDragMove(this.dragSunId, worldPos);
+    this.callbacks.onDragMove(this.dragTarget, worldPos);
   };
 
   private onPointerUp = (event: PointerEvent): void => {
-    if (this.dragPointerId !== event.pointerId || !this.dragSunId) return;
+    if (this.dragPointerId !== event.pointerId || !this.dragTarget) return;
     const worldPos = this.callbacks.toWorld(event.clientX, event.clientY);
     if (worldPos) {
-      this.callbacks.onSunDragEnd(this.dragSunId, worldPos);
+      this.callbacks.onDragEnd(this.dragTarget, worldPos);
     }
     event.preventDefault();
 
@@ -77,15 +82,15 @@ export class PointerInput {
     }
 
     this.dragPointerId = null;
-    this.dragSunId = null;
+    this.dragTarget = null;
   };
 
   private onPointerCancel = (event: PointerEvent): void => {
-    if (this.dragPointerId !== event.pointerId || !this.dragSunId) return;
+    if (this.dragPointerId !== event.pointerId || !this.dragTarget) return;
 
     const worldPos = this.callbacks.toWorld(event.clientX, event.clientY);
     if (worldPos) {
-      this.callbacks.onSunDragEnd(this.dragSunId, worldPos);
+      this.callbacks.onDragEnd(this.dragTarget, worldPos);
     }
 
     if (this.element.hasPointerCapture(event.pointerId)) {
@@ -93,7 +98,7 @@ export class PointerInput {
     }
 
     this.dragPointerId = null;
-    this.dragSunId = null;
+    this.dragTarget = null;
     event.preventDefault();
   };
 

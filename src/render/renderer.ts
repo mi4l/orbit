@@ -171,7 +171,7 @@ export class GameRenderer {
     }
   }
 
-  syncPlanets(planets: ReadonlyArray<PlanetEntity>): void {
+  syncPlanets(planets: ReadonlyArray<PlanetEntity>, draggingPlanetId: string | null = null): void {
     const activeIds = new Set(planets.map((planet) => planet.id));
 
     for (const [id, sprite] of this.planetSprites) {
@@ -192,6 +192,7 @@ export class GameRenderer {
 
       sprite.position.set(planet.pos.x, planet.pos.y);
       sprite.alpha = planet.inOrbit ? 1 : 0.92;
+      sprite.scale.set(draggingPlanetId === planet.id ? 1.08 : 1);
     }
 
     this.trailRenderer.sync(planets);

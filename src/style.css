@@ -72,6 +72,8 @@ body,
 
 .hud-bottom {
   bottom: calc(0.6rem + var(--safe-bottom));
+  align-items: stretch;
+  gap: 0.55rem;
 }
 
 .hud-pill {
@@ -112,6 +114,87 @@ button.hud-pill:active {
 .hud-pill.warn {
   color: #ffd5cf;
   border-color: rgba(255, 111, 97, 0.5);
+}
+
+.planet-palette {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 0.45rem;
+  overflow-x: auto;
+  padding: 0.35rem;
+  border-radius: 14px;
+  border: 1px solid rgba(176, 216, 255, 0.2);
+  background: var(--panel);
+  backdrop-filter: blur(5px);
+  -webkit-overflow-scrolling: touch;
+}
+
+.planet-card {
+  min-width: 82px;
+  border: 1px solid rgba(176, 216, 255, 0.24);
+  border-radius: 12px;
+  background: rgba(22, 42, 67, 0.9);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+  padding: 0.28rem 0.34rem;
+  user-select: none;
+  touch-action: none;
+}
+
+.planet-card:active {
+  transform: scale(0.98);
+}
+
+.planet-card-icon {
+  width: 34px;
+  height: 34px;
+  pointer-events: none;
+}
+
+.planet-card-label {
+  font-size: 0.67rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.planet-card-stat {
+  font-size: 0.58rem;
+  color: var(--text-muted);
+  line-height: 1;
+}
+
+.palette-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  width: 92px;
+}
+
+.palette-controls .hud-pill {
+  min-height: 40px;
+  font-size: 0.75rem;
+  padding: 0 0.35rem;
+}
+
+.planet-drag-ghost {
+  position: fixed;
+  z-index: 9999;
+  transform: translate(-50%, -50%);
+  border: 2px solid #6ed0ff;
+  border-radius: 999px;
+  padding: 0.26rem 0.58rem;
+  background: rgba(8, 18, 32, 0.9);
+  color: #eff4ff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  white-space: nowrap;
 }
 
 .status-overlay {
@@ -162,5 +245,9 @@ button.hud-pill:active {
   .hud-bottom {
     left: max(1rem, calc((100vw - 620px) / 2));
     right: max(1rem, calc((100vw - 620px) / 2));
+  }
+
+  .planet-card {
+    min-width: 88px;
   }
 }

@@ -9,7 +9,11 @@ export const GAME_CONFIG = {
     fixedTimeStep: 1 / 60,
     maxStepsPerFrame: 5,
     maxDeltaTime: 0.25,
-    minDistanceForGravity: 2
+    minDistanceForGravity: 2,
+    enablePlanetGravity: true,
+    planetGravityScale: 0.9,
+    planetGravitySoftening: 2.5,
+    planetGravityMaxAccel: 35
   },
   gameplay: {
     dragTimeScale: 0.25,

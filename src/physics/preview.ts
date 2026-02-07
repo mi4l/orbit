@@ -2,7 +2,7 @@ import type { Vec2 } from '../core/math';
 import type { HazardEntity, PlanetEntity, SunEntity } from '../game/entities';
 import type { Bounds } from './collisions';
 import { isPreviewUnsafe } from './collisions';
-import { computeSunOnlyGravity, type GravityConfig } from './gravity';
+import { computeGravityWithPlanets, type GravityConfig } from './gravity';
 import { integrateTempBody } from './integrator';
 
 export interface PreviewLine {
@@ -21,6 +21,7 @@ export interface PreviewConfig {
 export const buildTrajectoryPreview = (
   planets: ReadonlyArray<PlanetEntity>,
   suns: ReadonlyArray<SunEntity>,
+  allPlanets: ReadonlyArray<PlanetEntity>,
   bounds: Bounds,
   hazards: ReadonlyArray<HazardEntity>,
   config: PreviewConfig
@@ -32,11 +33,23 @@ export const buildTrajectoryPreview = (
       vel: { x: planet.vel.x, y: planet.vel.y },
       maxSpeed: planet.maxSpeed
     };
+    const otherPlanets = allPlanets
+      .filter((source) => source.id !== planet.id)
+      .map((source) => ({
+        id: source.id,
+        pos: { x: source.pos.x, y: source.pos.y },
+        mass: source.mass
+      }));
 
     let danger = false;
 
     for (let step = 0; step < config.steps; step += 1) {
-      const accel = computeSunOnlyGravity(temp, suns, config.gravity);
+      const accel = computeGravityWithPlanets(
+        { id: planet.id, pos: temp.pos },
+        suns,
+        otherPlanets,
+        config.gravity
+      );
       integrateTempBody(temp, accel, config.dt, { globalDrag: config.drag });
 
       if (step % 2 === 0 || step === config.steps - 1) {
