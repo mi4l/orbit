@@ -1,10 +1,20 @@
 import type { PlanetType } from '../game/planetTypes';
+import type { StarType } from '../game/starTypes';
 import type { GamePhase } from '../game/stateMachine';
 
 interface ActivePaletteDrag {
   ghost: HTMLDivElement;
   pointerId: number;
+  kind: 'planet' | 'star';
   typeId: string;
+}
+
+interface PaletteItem {
+  kind: 'planet' | 'star';
+  id: string;
+  name: string;
+  color: number;
+  stat: string;
 }
 
 export interface HudCallbacks {
@@ -12,7 +22,7 @@ export interface HudCallbacks {
   onRestart(): void;
   onTrailsToggle(): void;
   onPreviewToggle(): void;
-  onPlanetPaletteDrop(typeId: string, clientX: number, clientY: number): void;
+  onPaletteDrop(kind: 'planet' | 'star', typeId: string, clientX: number, clientY: number): void;
   onNextLevel(): void;
   onRetry(): void;
 }
@@ -36,7 +46,12 @@ export class Hud {
   private readonly overlaySecondary: HTMLButtonElement;
   private activePaletteDrag: ActivePaletteDrag | null = null;
 
-  constructor(parent: HTMLElement, callbacks: HudCallbacks, planetTypes: ReadonlyArray<PlanetType>) {
+  constructor(
+    parent: HTMLElement,
+    callbacks: HudCallbacks,
+    planetTypes: ReadonlyArray<PlanetType>,
+    starTypes: ReadonlyArray<StarType>
+  ) {
     this.callbacks = callbacks;
 
     this.topBar = document.createElement('div');
@@ -67,8 +82,25 @@ export class Hud {
     this.paletteStrip = document.createElement('div');
     this.paletteStrip.className = 'planet-palette';
 
-    for (const planetType of planetTypes) {
-      this.paletteStrip.appendChild(this.createPaletteCard(planetType));
+    const paletteItems: PaletteItem[] = [
+      ...starTypes.map((type) => ({
+        kind: 'star' as const,
+        id: type.id,
+        name: type.name,
+        color: type.color,
+        stat: `m${type.mass} g${type.gravityRadius}`
+      })),
+      ...planetTypes.map((type) => ({
+        kind: 'planet' as const,
+        id: type.id,
+        name: type.name,
+        color: type.color,
+        stat: `r${type.radius.toFixed(1)} d${type.density.toFixed(1)}`
+      }))
+    ];
+
+    for (const item of paletteItems) {
+      this.paletteStrip.appendChild(this.createPaletteCard(item));
     }
 
     const controlsCluster = document.createElement('div');
@@ -172,48 +204,50 @@ export class Hud {
     this.overlay.classList.remove('visible');
   }
 
-  private createPaletteCard(type: PlanetType): HTMLButtonElement {
+  private createPaletteCard(item: PaletteItem): HTMLButtonElement {
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'planet-card';
-    button.setAttribute('aria-label', `Drag ${type.name} planet into playfield`);
-    button.dataset.typeId = type.id;
+    button.className = `planet-card ${item.kind === 'star' ? 'star-card' : ''}`;
+    button.setAttribute('aria-label', `Drag ${item.name} into playfield`);
+    button.dataset.typeId = item.id;
+    button.dataset.kind = item.kind;
 
     const icon = document.createElement('img');
     icon.className = 'planet-card-icon';
-    icon.alt = `${type.name} planet`;
-    icon.src = this.makePlanetIcon(type);
+    icon.alt = item.name;
+    icon.src = this.makeBodyIcon(item.color, item.kind === 'star');
 
     const label = document.createElement('span');
     label.className = 'planet-card-label';
-    label.textContent = `${type.name}`;
+    label.textContent = item.name;
 
     const stat = document.createElement('span');
     stat.className = 'planet-card-stat';
-    stat.textContent = `r${type.radius.toFixed(1)} d${type.density.toFixed(1)}`;
+    stat.textContent = item.stat;
 
     button.append(icon, label, stat);
-    button.addEventListener('pointerdown', (event) => this.onPalettePointerDown(event, type));
+    button.addEventListener('pointerdown', (event) => this.onPalettePointerDown(event, item));
 
     return button;
   }
 
-  private makePlanetIcon(type: PlanetType): string {
-    const ringColor = '#ffffff44';
-    const fillColor = `#${type.color.toString(16).padStart(6, '0')}`;
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><defs><radialGradient id="g" cx="35%" cy="30%" r="65%"><stop offset="0%" stop-color="#ffffffcc"/><stop offset="42%" stop-color="${fillColor}"/><stop offset="100%" stop-color="#101624"/></radialGradient></defs><rect width="64" height="64" fill="transparent"/><circle cx="32" cy="32" r="20" fill="url(#g)"/><circle cx="32" cy="32" r="21.5" fill="none" stroke="${ringColor}" stroke-width="2"/></svg>`;
+  private makeBodyIcon(color: number, isStar: boolean): string {
+    const ringColor = isStar ? '#ffd78a66' : '#ffffff44';
+    const coreColor = `#${color.toString(16).padStart(6, '0')}`;
+    const bg = isStar ? '#2e1e11' : '#101624';
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><defs><radialGradient id="g" cx="35%" cy="30%" r="65%"><stop offset="0%" stop-color="#ffffffcc"/><stop offset="42%" stop-color="${coreColor}"/><stop offset="100%" stop-color="${bg}"/></radialGradient></defs><rect width="64" height="64" fill="transparent"/><circle cx="32" cy="32" r="20" fill="url(#g)"/><circle cx="32" cy="32" r="21.5" fill="none" stroke="${ringColor}" stroke-width="2"/></svg>`;
     return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
   }
 
-  private onPalettePointerDown(event: PointerEvent, type: PlanetType): void {
+  private onPalettePointerDown(event: PointerEvent, item: PaletteItem): void {
     event.preventDefault();
 
     this.clearPaletteDrag();
 
     const ghost = document.createElement('div');
     ghost.className = 'planet-drag-ghost';
-    ghost.textContent = type.name;
-    ghost.style.borderColor = `#${type.color.toString(16).padStart(6, '0')}`;
+    ghost.textContent = item.name;
+    ghost.style.borderColor = `#${item.color.toString(16).padStart(6, '0')}`;
 
     document.body.appendChild(ghost);
     this.positionGhost(ghost, event.clientX, event.clientY);
@@ -221,7 +255,8 @@ export class Hud {
     this.activePaletteDrag = {
       ghost,
       pointerId: event.pointerId,
-      typeId: type.id
+      kind: item.kind,
+      typeId: item.id
     };
   }
 
@@ -234,7 +269,12 @@ export class Hud {
   private onPalettePointerUp = (event: PointerEvent): void => {
     if (!this.activePaletteDrag || event.pointerId !== this.activePaletteDrag.pointerId) return;
     event.preventDefault();
-    this.callbacks.onPlanetPaletteDrop(this.activePaletteDrag.typeId, event.clientX, event.clientY);
+    this.callbacks.onPaletteDrop(
+      this.activePaletteDrag.kind,
+      this.activePaletteDrag.typeId,
+      event.clientX,
+      event.clientY
+    );
     this.clearPaletteDrag();
   };
 

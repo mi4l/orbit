@@ -11,13 +11,14 @@ export const GAME_CONFIG = {
     maxDeltaTime: 0.25,
     minDistanceForGravity: 2,
     enablePlanetGravity: true,
-    planetGravityScale: 0.9,
+    planetGravityScale: 2.2,
     planetGravitySoftening: 2.5,
-    planetGravityMaxAccel: 35
+    planetGravityMaxAccel: 62
   },
   gameplay: {
     dragTimeScale: 0.25,
     maxPlanets: 30,
+    maxSuns: 8,
     defaultPlanetMass: 1,
     defaultPlanetRadius: 2.25,
     defaultPlanetRestitution: 0.88,

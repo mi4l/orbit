@@ -7,6 +7,7 @@ import { createPlanetEntity, type PlanetEntity, type SunEntity } from './game/en
 import { PointerInput, type DragTarget } from './game/input';
 import { LevelManager, type ActiveLevel } from './game/levelManager';
 import { PLANET_TYPES, computePlanetMass } from './game/planetTypes';
+import { STAR_TYPES } from './game/starTypes';
 import { GameStateMachine } from './game/stateMachine';
 import { updateOrbitProgress } from './game/winConditions';
 import {
@@ -44,6 +45,7 @@ class OrbitPuzzlesGame {
   private orbitBestTimer = 0;
   private playerSpawned = 0;
   private spawnSequence = 0;
+  private sunSpawnSequence = 0;
   private previewSteps: number = GAME_CONFIG.preview.defaultSteps;
   private previewCooldown = 0;
 
@@ -62,10 +64,10 @@ class OrbitPuzzlesGame {
       onRestart: this.handleRestart,
       onTrailsToggle: this.handleTrailsToggle,
       onPreviewToggle: this.handlePreviewToggle,
-      onPlanetPaletteDrop: this.handlePlanetPaletteDrop,
+      onPaletteDrop: this.handlePaletteDrop,
       onNextLevel: this.handleNextLevel,
       onRetry: this.handleRestart
-    }, PLANET_TYPES);
+    }, PLANET_TYPES, STAR_TYPES);
 
     this.input = new PointerInput(this.renderer.interactionElement, {
       toWorld: (x, y) => this.renderer.worldFromClient(x, y),
@@ -416,6 +418,44 @@ class OrbitPuzzlesGame {
     this.planets.push(planet);
   }
 
+  private spawnSun(worldPos: Vec2, type: (typeof STAR_TYPES)[number]): void {
+    if (this.state.current !== 'playing') return;
+    if (this.suns.length >= GAME_CONFIG.gameplay.maxSuns) return;
+
+    const bounds = this.activeLevel.definition.bounds;
+    const safePos = {
+      x: clamp(worldPos.x, type.visualRadius, bounds.width - type.visualRadius),
+      y: clamp(worldPos.y, type.visualRadius, bounds.height - type.visualRadius)
+    };
+
+    if (doesCircleOverlapHazard(safePos, type.visualRadius, this.activeLevel.hazards)) return;
+    if (doesCircleOverlapWall(safePos, type.visualRadius, this.activeLevel.walls)) return;
+
+    const sunOverlap = this.suns.some((sun) => {
+      const minGap = sun.visualRadius + type.visualRadius + 1.6;
+      return distanceSquared(sun.pos, safePos) <= minGap * minGap;
+    });
+    if (sunOverlap) return;
+
+    const planetOverlap = this.planets.some((planet) => {
+      const minGap = planet.radius + type.visualRadius + 0.9;
+      return distanceSquared(planet.pos, safePos) <= minGap * minGap;
+    });
+    if (planetOverlap) return;
+
+    this.suns.push({
+      id: `spawn-sun-${this.sunSpawnSequence}`,
+      pos: safePos,
+      mass: type.mass,
+      visualRadius: type.visualRadius,
+      gravityRadius: type.gravityRadius,
+      softeningEpsilon: type.softeningEpsilon,
+      maxAccel: type.maxAccel,
+      movable: true
+    });
+    this.sunSpawnSequence += 1;
+  }
+
   private canSpawnPlanetAt(position: Vec2, radius: number): boolean {
     if (doesCircleOverlapHazard(position, radius, this.activeLevel.hazards)) {
       return false;
@@ -514,6 +554,7 @@ class OrbitPuzzlesGame {
     this.dragTarget = null;
     this.playerSpawned = 0;
     this.spawnSequence = 0;
+    this.sunSpawnSequence = 0;
     this.orbitBestTimer = 0;
     this.previewLines = [];
     this.previewCooldown = 0;
@@ -560,7 +601,12 @@ class OrbitPuzzlesGame {
     this.applyLevel(nextLevel ?? this.levelManager.load(0));
   };
 
-  private handlePlanetPaletteDrop = (typeId: string, clientX: number, clientY: number): void => {
+  private handlePaletteDrop = (
+    kind: 'planet' | 'star',
+    typeId: string,
+    clientX: number,
+    clientY: number
+  ): void => {
     if (this.state.current !== 'playing') return;
     const canvasRect = this.renderer.interactionElement.getBoundingClientRect();
     if (
@@ -575,12 +621,19 @@ class OrbitPuzzlesGame {
     const worldPos = this.renderer.worldFromClient(clientX, clientY);
     if (!worldPos) return;
 
-    const planetType = PLANET_TYPES.find((entry) => entry.id === typeId);
-    if (!planetType) return;
-
     this.dragTarget = null;
     this.previewLines = [];
-    this.spawnPlanet(worldPos, planetType);
+
+    if (kind === 'planet') {
+      const planetType = PLANET_TYPES.find((entry) => entry.id === typeId);
+      if (!planetType) return;
+      this.spawnPlanet(worldPos, planetType);
+      return;
+    }
+
+    const starType = STAR_TYPES.find((entry) => entry.id === typeId);
+    if (!starType) return;
+    this.spawnSun(worldPos, starType);
   };
 
   private handleTrailsToggle = (): void => {

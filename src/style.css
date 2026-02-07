@@ -150,6 +150,11 @@ button.hud-pill:active {
   transform: scale(0.98);
 }
 
+.star-card {
+  border-color: rgba(255, 212, 132, 0.5);
+  background: rgba(54, 36, 20, 0.88);
+}
+
 .planet-card-icon {
   width: 34px;
   height: 34px;

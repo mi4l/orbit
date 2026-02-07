@@ -20,7 +20,8 @@ npm run preview
 
 - Drag a movable sun to reshape gravity fields.
 - Drag existing planets to reposition them before releasing.
-- Drag a planet card from the bottom palette into the playfield to spawn that planet type.
+- Drag a body card from the bottom palette into the playfield to spawn that type.
+- Star cards spawn movable gravity sources; level 1 starts without a central star.
 - `Pause`, `Restart`, `Trails`, and `Preview` are available in HUD.
 - While dragging a sun, simulation runs in bullet-time and preview trajectories appear.
 

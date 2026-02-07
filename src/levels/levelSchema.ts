@@ -135,8 +135,8 @@ export const parseLevelDefinition = (input: unknown, index: number): LevelDefini
   }
 
   const sunsRaw = root.suns;
-  if (!Array.isArray(sunsRaw) || sunsRaw.length === 0 || sunsRaw.length > 3) {
-    throw new Error(`levels[${index}].suns must contain 1 to 3 entries`);
+  if (!Array.isArray(sunsRaw) || sunsRaw.length > GAME_CONFIG.gameplay.maxSuns) {
+    throw new Error(`levels[${index}].suns must contain 0 to ${GAME_CONFIG.gameplay.maxSuns} entries`);
   }
 
   const suns = sunsRaw.map((item, sunIndex) => {
