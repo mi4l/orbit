@@ -1,0 +1,647 @@
+[
+  {
+    "id": "l1-first-orbit",
+    "name": "First Orbit",
+    "bounds": { "width": 100, "height": 180 },
+    "suns": [
+      {
+        "pos": { "x": 50, "y": 90 },
+        "mass": 235,
+        "visualRadius": 5,
+        "gravityRadius": 42,
+        "softeningEpsilon": 3,
+        "maxAccel": 72,
+        "movable": true
+      }
+    ],
+    "planets": [
+      {
+        "pos": { "x": 71, "y": 90 },
+        "vel": { "x": 0, "y": 17.5 },
+        "mass": 1,
+        "radius": 2.4,
+        "restitution": 0.9,
+        "maxSpeed": 62
+      }
+    ],
+    "walls": [],
+    "hazards": [],
+    "winCondition": {
+      "requiredPlanets": 1,
+      "stableSeconds": 3,
+      "orbit": {
+        "minOrbitRadius": 17,
+        "maxOrbitRadius": 55,
+        "minSpeed": 6,
+        "maxSpeed": 30,
+        "maxRadialSpeed": 7
+      }
+    },
+    "rules": {
+      "maxPlanets": 3,
+      "spawnSpeed": 14,
+      "sunMoveAfterPlaced": true,
+      "failOnSunCollision": false
+    }
+  },
+  {
+    "id": "l2-two-body-train",
+    "name": "Two-Body Training",
+    "bounds": { "width": 100, "height": 180 },
+    "suns": [
+      {
+        "pos": { "x": 50, "y": 88 },
+        "mass": 245,
+        "visualRadius": 5,
+        "gravityRadius": 44,
+        "softeningEpsilon": 3,
+        "maxAccel": 75,
+        "movable": true
+      }
+    ],
+    "planets": [
+      {
+        "pos": { "x": 76, "y": 88 },
+        "vel": { "x": 0, "y": 16.8 },
+        "mass": 1,
+        "radius": 2.2,
+        "restitution": 0.9,
+        "maxSpeed": 62
+      },
+      {
+        "pos": { "x": 26, "y": 88 },
+        "vel": { "x": 0, "y": -17.2 },
+        "mass": 1,
+        "radius": 2.2,
+        "restitution": 0.9,
+        "maxSpeed": 62
+      }
+    ],
+    "walls": [],
+    "hazards": [],
+    "winCondition": {
+      "requiredPlanets": 2,
+      "stableSeconds": 3.2,
+      "orbit": {
+        "minOrbitRadius": 18,
+        "maxOrbitRadius": 58,
+        "minSpeed": 5,
+        "maxSpeed": 31,
+        "maxRadialSpeed": 7
+      }
+    },
+    "rules": {
+      "maxPlanets": 4,
+      "spawnSpeed": 14,
+      "sunMoveAfterPlaced": true,
+      "failOnSunCollision": false
+    }
+  },
+  {
+    "id": "l3-dual-pull",
+    "name": "Dual Pull",
+    "bounds": { "width": 100, "height": 180 },
+    "suns": [
+      {
+        "pos": { "x": 34, "y": 90 },
+        "mass": 170,
+        "visualRadius": 4.5,
+        "gravityRadius": 34,
+        "softeningEpsilon": 2.8,
+        "maxAccel": 63,
+        "movable": true
+      },
+      {
+        "pos": { "x": 66, "y": 90 },
+        "mass": 185,
+        "visualRadius": 4.8,
+        "gravityRadius": 35,
+        "softeningEpsilon": 2.8,
+        "maxAccel": 63,
+        "movable": false
+      }
+    ],
+    "planets": [
+      {
+        "pos": { "x": 50, "y": 55 },
+        "vel": { "x": 18, "y": 0 },
+        "mass": 1,
+        "radius": 2.2,
+        "restitution": 0.9,
+        "maxSpeed": 64
+      },
+      {
+        "pos": { "x": 50, "y": 125 },
+        "vel": { "x": -18, "y": 0 },
+        "mass": 1,
+        "radius": 2.3,
+        "restitution": 0.88,
+        "maxSpeed": 64
+      }
+    ],
+    "walls": [],
+    "hazards": [],
+    "winCondition": {
+      "requiredPlanets": 2,
+      "stableSeconds": 3.6,
+      "orbit": {
+        "minOrbitRadius": 14,
+        "maxOrbitRadius": 52,
+        "minSpeed": 5,
+        "maxSpeed": 34,
+        "maxRadialSpeed": 8
+      }
+    },
+    "rules": {
+      "maxPlanets": 5,
+      "spawnSpeed": 13,
+      "sunMoveAfterPlaced": true,
+      "failOnSunCollision": false
+    }
+  },
+  {
+    "id": "l4-wall-hop",
+    "name": "Wall Hop",
+    "bounds": { "width": 100, "height": 180 },
+    "suns": [
+      {
+        "pos": { "x": 50, "y": 90 },
+        "mass": 220,
+        "visualRadius": 5,
+        "gravityRadius": 40,
+        "softeningEpsilon": 2.9,
+        "maxAccel": 72,
+        "movable": true
+      }
+    ],
+    "planets": [
+      {
+        "pos": { "x": 74, "y": 84 },
+        "vel": { "x": -2, "y": 18 },
+        "mass": 1,
+        "radius": 2.3,
+        "restitution": 0.93,
+        "maxSpeed": 62
+      }
+    ],
+    "walls": [
+      { "x": 46.5, "y": 52, "width": 7, "height": 74, "restitution": 0.94 }
+    ],
+    "hazards": [],
+    "winCondition": {
+      "requiredPlanets": 1,
+      "stableSeconds": 4,
+      "orbit": {
+        "minOrbitRadius": 16,
+        "maxOrbitRadius": 58,
+        "minSpeed": 5,
+        "maxSpeed": 33,
+        "maxRadialSpeed": 7
+      }
+    },
+    "rules": {
+      "maxPlanets": 4,
+      "spawnSpeed": 14,
+      "sunMoveAfterPlaced": true,
+      "failOnSunCollision": false
+    }
+  },
+  {
+    "id": "l5-red-core",
+    "name": "Red Core",
+    "bounds": { "width": 100, "height": 180 },
+    "suns": [
+      {
+        "pos": { "x": 34, "y": 90 },
+        "mass": 165,
+        "visualRadius": 4.8,
+        "gravityRadius": 34,
+        "softeningEpsilon": 2.8,
+        "maxAccel": 62,
+        "movable": true
+      },
+      {
+        "pos": { "x": 66, "y": 90 },
+        "mass": 165,
+        "visualRadius": 4.8,
+        "gravityRadius": 34,
+        "softeningEpsilon": 2.8,
+        "maxAccel": 62,
+        "movable": true
+      }
+    ],
+    "planets": [
+      {
+        "pos": { "x": 50, "y": 52 },
+        "vel": { "x": 20, "y": 0 },
+        "mass": 1,
+        "radius": 2.2,
+        "restitution": 0.9,
+        "maxSpeed": 65
+      },
+      {
+        "pos": { "x": 50, "y": 128 },
+        "vel": { "x": -20, "y": 0 },
+        "mass": 1,
+        "radius": 2.2,
+        "restitution": 0.9,
+        "maxSpeed": 65
+      }
+    ],
+    "walls": [],
+    "hazards": [
+      { "type": "circle", "x": 50, "y": 90, "radius": 11 }
+    ],
+    "winCondition": {
+      "requiredPlanets": 2,
+      "stableSeconds": 3.8,
+      "orbit": {
+        "minOrbitRadius": 14,
+        "maxOrbitRadius": 50,
+        "minSpeed": 6,
+        "maxSpeed": 35,
+        "maxRadialSpeed": 8
+      }
+    },
+    "rules": {
+      "maxPlanets": 5,
+      "spawnSpeed": 13,
+      "sunMoveAfterPlaced": true,
+      "failOnSunCollision": false
+    }
+  },
+  {
+    "id": "l6-tight-lanes",
+    "name": "Tight Lanes",
+    "bounds": { "width": 100, "height": 180 },
+    "suns": [
+      {
+        "pos": { "x": 28, "y": 90 },
+        "mass": 150,
+        "visualRadius": 4.4,
+        "gravityRadius": 33,
+        "softeningEpsilon": 2.7,
+        "maxAccel": 58,
+        "movable": true
+      },
+      {
+        "pos": { "x": 72, "y": 90 },
+        "mass": 150,
+        "visualRadius": 4.4,
+        "gravityRadius": 33,
+        "softeningEpsilon": 2.7,
+        "maxAccel": 58,
+        "movable": false
+      }
+    ],
+    "planets": [
+      {
+        "pos": { "x": 50, "y": 44 },
+        "vel": { "x": 17, "y": 0 },
+        "mass": 1,
+        "radius": 2.1,
+        "restitution": 0.91,
+        "maxSpeed": 65
+      },
+      {
+        "pos": { "x": 50, "y": 136 },
+        "vel": { "x": -17, "y": 0 },
+        "mass": 1,
+        "radius": 2.1,
+        "restitution": 0.91,
+        "maxSpeed": 65
+      }
+    ],
+    "walls": [
+      { "x": 20, "y": 68, "width": 20, "height": 5, "restitution": 0.92 },
+      { "x": 60, "y": 107, "width": 20, "height": 5, "restitution": 0.92 }
+    ],
+    "hazards": [
+      { "type": "rect", "x": 45, "y": 74, "width": 10, "height": 32 }
+    ],
+    "winCondition": {
+      "requiredPlanets": 2,
+      "stableSeconds": 4.2,
+      "orbit": {
+        "minOrbitRadius": 13,
+        "maxOrbitRadius": 45,
+        "minSpeed": 6,
+        "maxSpeed": 36,
+        "maxRadialSpeed": 7
+      }
+    },
+    "rules": {
+      "maxPlanets": 6,
+      "spawnSpeed": 12.5,
+      "sunMoveAfterPlaced": false,
+      "failOnSunCollision": false
+    }
+  },
+  {
+    "id": "l7-anchor",
+    "name": "Anchor and Drift",
+    "bounds": { "width": 100, "height": 180 },
+    "suns": [
+      {
+        "pos": { "x": 24, "y": 90 },
+        "mass": 175,
+        "visualRadius": 4.9,
+        "gravityRadius": 34,
+        "softeningEpsilon": 2.8,
+        "maxAccel": 62,
+        "movable": false
+      },
+      {
+        "pos": { "x": 72, "y": 92 },
+        "mass": 155,
+        "visualRadius": 4.6,
+        "gravityRadius": 32,
+        "softeningEpsilon": 2.7,
+        "maxAccel": 58,
+        "movable": true
+      }
+    ],
+    "planets": [
+      {
+        "pos": { "x": 24, "y": 54 },
+        "vel": { "x": 15.5, "y": 0 },
+        "mass": 1,
+        "radius": 2.3,
+        "restitution": 0.9,
+        "maxSpeed": 66
+      },
+      {
+        "pos": { "x": 74, "y": 54 },
+        "vel": { "x": 0, "y": 14.5 },
+        "mass": 1,
+        "radius": 2.3,
+        "restitution": 0.9,
+        "maxSpeed": 66
+      }
+    ],
+    "walls": [],
+    "hazards": [
+      { "type": "circle", "x": 52, "y": 118, "radius": 9 }
+    ],
+    "winCondition": {
+      "requiredPlanets": 2,
+      "stableSeconds": 4.6,
+      "orbit": {
+        "minOrbitRadius": 13,
+        "maxOrbitRadius": 46,
+        "minSpeed": 6,
+        "maxSpeed": 36,
+        "maxRadialSpeed": 7
+      }
+    },
+    "rules": {
+      "maxPlanets": 6,
+      "spawnSpeed": 12,
+      "sunMoveAfterPlaced": false,
+      "failOnSunCollision": false
+    }
+  },
+  {
+    "id": "l8-triple-weave",
+    "name": "Triple Weave",
+    "bounds": { "width": 100, "height": 180 },
+    "suns": [
+      {
+        "pos": { "x": 25, "y": 70 },
+        "mass": 120,
+        "visualRadius": 4.2,
+        "gravityRadius": 30,
+        "softeningEpsilon": 2.6,
+        "maxAccel": 52,
+        "movable": true
+      },
+      {
+        "pos": { "x": 75, "y": 70 },
+        "mass": 120,
+        "visualRadius": 4.2,
+        "gravityRadius": 30,
+        "softeningEpsilon": 2.6,
+        "maxAccel": 52,
+        "movable": false
+      },
+      {
+        "pos": { "x": 50, "y": 120 },
+        "mass": 145,
+        "visualRadius": 4.5,
+        "gravityRadius": 32,
+        "softeningEpsilon": 2.6,
+        "maxAccel": 55,
+        "movable": false
+      }
+    ],
+    "planets": [
+      {
+        "pos": { "x": 50, "y": 42 },
+        "vel": { "x": 16, "y": 0 },
+        "mass": 1,
+        "radius": 2.1,
+        "restitution": 0.9,
+        "maxSpeed": 66
+      },
+      {
+        "pos": { "x": 22, "y": 120 },
+        "vel": { "x": 0, "y": -15 },
+        "mass": 1,
+        "radius": 2.1,
+        "restitution": 0.9,
+        "maxSpeed": 66
+      },
+      {
+        "pos": { "x": 78, "y": 120 },
+        "vel": { "x": 0, "y": -15 },
+        "mass": 1,
+        "radius": 2.1,
+        "restitution": 0.9,
+        "maxSpeed": 66
+      }
+    ],
+    "walls": [
+      { "x": 44, "y": 90, "width": 12, "height": 4, "restitution": 0.9 }
+    ],
+    "hazards": [
+      { "type": "rect", "x": 43, "y": 135, "width": 14, "height": 20 }
+    ],
+    "winCondition": {
+      "requiredPlanets": 2,
+      "stableSeconds": 5,
+      "orbit": {
+        "minOrbitRadius": 12,
+        "maxOrbitRadius": 44,
+        "minSpeed": 6,
+        "maxSpeed": 38,
+        "maxRadialSpeed": 7
+      }
+    },
+    "rules": {
+      "maxPlanets": 7,
+      "spawnSpeed": 11.5,
+      "sunMoveAfterPlaced": false,
+      "failOnSunCollision": false
+    }
+  },
+  {
+    "id": "l9-tight-clock",
+    "name": "Tight Clock",
+    "bounds": { "width": 100, "height": 180 },
+    "suns": [
+      {
+        "pos": { "x": 30, "y": 88 },
+        "mass": 160,
+        "visualRadius": 4.6,
+        "gravityRadius": 33,
+        "softeningEpsilon": 2.7,
+        "maxAccel": 58,
+        "movable": true
+      },
+      {
+        "pos": { "x": 70, "y": 88 },
+        "mass": 160,
+        "visualRadius": 4.6,
+        "gravityRadius": 33,
+        "softeningEpsilon": 2.7,
+        "maxAccel": 58,
+        "movable": false
+      }
+    ],
+    "planets": [
+      {
+        "pos": { "x": 50, "y": 48 },
+        "vel": { "x": 18, "y": 0 },
+        "mass": 1,
+        "radius": 2.1,
+        "restitution": 0.89,
+        "maxSpeed": 67
+      },
+      {
+        "pos": { "x": 50, "y": 128 },
+        "vel": { "x": -18, "y": 0 },
+        "mass": 1,
+        "radius": 2.1,
+        "restitution": 0.89,
+        "maxSpeed": 67
+      },
+      {
+        "pos": { "x": 18, "y": 88 },
+        "vel": { "x": 0, "y": -14 },
+        "mass": 1,
+        "radius": 2.2,
+        "restitution": 0.89,
+        "maxSpeed": 67
+      }
+    ],
+    "walls": [
+      { "x": 48, "y": 30, "width": 4, "height": 35, "restitution": 0.92 },
+      { "x": 48, "y": 116, "width": 4, "height": 35, "restitution": 0.92 }
+    ],
+    "hazards": [
+      { "type": "circle", "x": 50, "y": 88, "radius": 8 }
+    ],
+    "winCondition": {
+      "requiredPlanets": 3,
+      "stableSeconds": 5.2,
+      "orbit": {
+        "minOrbitRadius": 12,
+        "maxOrbitRadius": 42,
+        "minSpeed": 6,
+        "maxSpeed": 39,
+        "maxRadialSpeed": 6.8
+      }
+    },
+    "rules": {
+      "maxPlanets": 8,
+      "spawnSpeed": 11.5,
+      "sunMoveAfterPlaced": false,
+      "failOnSunCollision": false
+    }
+  },
+  {
+    "id": "l10-final-net",
+    "name": "Final Net",
+    "bounds": { "width": 100, "height": 180 },
+    "suns": [
+      {
+        "pos": { "x": 26, "y": 74 },
+        "mass": 135,
+        "visualRadius": 4.3,
+        "gravityRadius": 31,
+        "softeningEpsilon": 2.6,
+        "maxAccel": 54,
+        "movable": true
+      },
+      {
+        "pos": { "x": 74, "y": 74 },
+        "mass": 135,
+        "visualRadius": 4.3,
+        "gravityRadius": 31,
+        "softeningEpsilon": 2.6,
+        "maxAccel": 54,
+        "movable": false
+      },
+      {
+        "pos": { "x": 50, "y": 124 },
+        "mass": 150,
+        "visualRadius": 4.6,
+        "gravityRadius": 34,
+        "softeningEpsilon": 2.6,
+        "maxAccel": 56,
+        "movable": false
+      }
+    ],
+    "planets": [
+      {
+        "pos": { "x": 50, "y": 38 },
+        "vel": { "x": 18.5, "y": 0 },
+        "mass": 1,
+        "radius": 2.1,
+        "restitution": 0.9,
+        "maxSpeed": 67
+      },
+      {
+        "pos": { "x": 18, "y": 110 },
+        "vel": { "x": 0, "y": -14 },
+        "mass": 1,
+        "radius": 2.1,
+        "restitution": 0.9,
+        "maxSpeed": 67
+      },
+      {
+        "pos": { "x": 82, "y": 110 },
+        "vel": { "x": 0, "y": 14 },
+        "mass": 1,
+        "radius": 2.1,
+        "restitution": 0.9,
+        "maxSpeed": 67
+      }
+    ],
+    "walls": [
+      { "x": 36, "y": 96, "width": 28, "height": 4, "restitution": 0.9 },
+      { "x": 48, "y": 96, "width": 4, "height": 42, "restitution": 0.9 }
+    ],
+    "hazards": [
+      { "type": "rect", "x": 42, "y": 142, "width": 16, "height": 24 },
+      { "type": "circle", "x": 50, "y": 88, "radius": 7.5 }
+    ],
+    "winCondition": {
+      "requiredPlanets": 3,
+      "stableSeconds": 6,
+      "orbit": {
+        "minOrbitRadius": 11,
+        "maxOrbitRadius": 40,
+        "minSpeed": 6,
+        "maxSpeed": 40,
+        "maxRadialSpeed": 6.5
+      }
+    },
+    "rules": {
+      "maxPlanets": 10,
+      "spawnSpeed": 11,
+      "sunMoveAfterPlaced": false,
+      "failOnSunCollision": false
+    }
+  }
+]
